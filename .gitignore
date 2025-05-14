@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# TYM'S STUFF
+build
+glad
+glad.zip
+glfw-3.4
+Include
+Libs
