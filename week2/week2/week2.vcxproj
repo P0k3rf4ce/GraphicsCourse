@@ -71,8 +71,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\tsomp\source\repos\GraphicsCourse\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\tsomp\source\repos\GraphicsCourse\Libs;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\tsomp\source\repos\GraphicsCourse\Include;C:\csc493\Include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\csc493\libs;C:\Users\tsomp\source\repos\GraphicsCourse\Libs;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -135,6 +135,7 @@
     <ClCompile Include="glad.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="stb_image.cpp" />
+    <ClCompile Include="transformations.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="shader_s.h" />
