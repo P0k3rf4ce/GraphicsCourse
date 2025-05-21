@@ -2,9 +2,13 @@
 #include <GLFW/glfw3.h>
 #include <stb_image.h>
 
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>z
 #include <glm/gtc/type_ptr.hpp>
+
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 #include "shader_s.h"
 
@@ -168,7 +172,20 @@ int main()
         // create transformations
         glm::mat4 transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
         transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
-        transform = glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
+        //transform = glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
+        // Compute angle (in radians) and axis
+        float angle = (float)glfwGetTime();
+        glm::vec3 axis = glm::vec3(0.0f, 0.0f, 1.0f);
+
+        // Build a unit quaternion representing the rotation
+        glm::quat q = glm::angleAxis(angle, glm::normalize(axis));
+
+        // Convert quaternion to a 4×4 rotation matrix
+        glm::mat4 rotMat = glm::toMat4(glm::normalize(q));
+
+        // Apply it exactly as glm::rotate(transform, angle, axis) would:
+        // glm::rotate does: transform = transform * R
+        transform = transform * rotMat;
 
         // get matrix's uniform location and set matrix
         ourShader.use();
