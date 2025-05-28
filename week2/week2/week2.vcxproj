@@ -145,8 +145,8 @@
   <ItemGroup>
     <None Include="light_cube.fs" />
     <None Include="light_cube.vs" />
-    <None Include="light.fs" />
-    <None Include="light.vs" />
+    <None Include="material.fs" />
+    <None Include="material.vs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

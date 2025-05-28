@@ -46,10 +46,10 @@
     <None Include="light_cube.vs">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="light.vs">
+    <None Include="material.vs">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="light.fs">
+    <None Include="material.fs">
       <Filter>Source Files</Filter>
     </None>
   </ItemGroup>
