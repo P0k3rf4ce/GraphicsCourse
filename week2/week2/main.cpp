@@ -75,7 +75,7 @@ int main()
 
     // build and compile our shader zprogram
     // ------------------------------------
-    Shader lightingShader("lighting_maps.vs", "light_casters_spot.fs");
+    Shader lightingShader("lighting_maps.vs", "light_casters_smooth.fs");
     Shader lightCubeShader("light_cube.vs", "light_cube.fs");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
@@ -163,7 +163,7 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    // load textures (we now use a utility function to keep the code more organized)
+    // load textures
     // -----------------------------------------------------------------------------
     unsigned int diffuseMap = loadTexture("container2.png");
     unsigned int specularMap = loadTexture("container2_specular.png");
@@ -199,6 +199,7 @@ int main()
         lightingShader.setVec3("light.position", camera.Position);
         lightingShader.setVec3("light.direction", camera.Front);
         lightingShader.setFloat("light.cutOff", glm::cos(glm::radians(12.5f)));
+        lightingShader.setFloat("light.outerCutOff", glm::cos(glm::radians(17.5f)));
         lightingShader.setVec3("viewPos", camera.Position);
 
         // light properties
@@ -244,7 +245,6 @@ int main()
 
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
-
 
         // again, a lamp object is weird when we only have a spot light, don't render the light object
         // lightCubeShader.use();
