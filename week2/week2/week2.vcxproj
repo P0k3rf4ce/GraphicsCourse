@@ -145,8 +145,8 @@
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="3.1.blending.fs" />
-    <None Include="3.1.blending.vs" />
+    <None Include="3.2.blending.fs" />
+    <None Include="3.2.blending.vs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
