@@ -150,9 +150,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\..\..\..\..\..\assimp\build\bin\Debug\assimp-vc143-mtd.dll" />
-    <None Include="2.stencil_single_color.fs" />
-    <None Include="2.stencil_testing.fs" />
-    <None Include="2.stencil_testing.vs" />
+    <None Include="5.1.framebuffers.fs" />
+    <None Include="5.1.framebuffers.vs" />
+    <None Include="5.1.framebuffers_screen.fs" />
+    <None Include="5.1.framebuffers_screen.vs" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\..\..\..\..\Downloads\marble.jpg" />
