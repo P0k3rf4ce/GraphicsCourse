@@ -150,10 +150,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\..\..\..\..\..\assimp\build\bin\Debug\assimp-vc143-mtd.dll" />
-    <None Include="5.1.framebuffers.fs" />
-    <None Include="5.1.framebuffers.vs" />
-    <None Include="5.1.framebuffers_screen.fs" />
-    <None Include="5.1.framebuffers_screen.vs" />
+    <None Include="6.1.cubemaps.fs" />
+    <None Include="6.1.cubemaps.vs" />
+    <None Include="6.1.skybox.fs" />
+    <None Include="6.1.skybox.vs" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\..\..\..\..\Downloads\marble.jpg" />
