@@ -33,6 +33,9 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+bool textured = false;
+bool lock = false;
+
 int main()
 {
     // glfw: initialize and configure
@@ -78,6 +81,7 @@ int main()
     // build and compile shaders
     // -------------------------
     Shader shader("pbr.vs", "pbr.fs");
+    Shader shaderTextured("pbr.vs", "pbr_textured.fs");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -85,7 +89,7 @@ int main()
         glm::vec3(-10.0f,  10.0f, 10.0f),
         glm::vec3( 10.0f,  10.0f, 10.0f),
         glm::vec3(-10.0f, -10.0f, 10.0f),
-        glm::vec3( 10.0f, -10.0f, 10.0f),
+        glm::vec3( 10.0f, -10.0f, 10.0f)
     };
     glm::vec3 lightColors[] = {
         glm::vec3(300.0f, 300.0f, 300.0f),
@@ -106,6 +110,23 @@ int main()
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
     shader.setMat4("projection", projection);
 
+    shaderTextured.use();
+    shaderTextured.setMat4("projection", projection);
+
+    shaderTextured.setInt("albedoMap", 0);
+    shaderTextured.setInt("normalMap", 1);
+    shaderTextured.setInt("metallicMap", 2);
+    shaderTextured.setInt("roughnessMap", 3);
+    shaderTextured.setInt("aoMap", 4);
+
+    // load pbr textures
+    // -----------------
+    unsigned int albedo    = loadTexture("ball/albedo.png");
+    unsigned int normal    = loadTexture("ball/normal.png");
+    unsigned int metallic  = loadTexture("ball/metallic.png");
+    unsigned int roughness = loadTexture("ball/roughness.png");
+    unsigned int ao        = loadTexture("ball/ao.png");
+
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -125,49 +146,106 @@ int main()
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        shader.use();
         glm::mat4 view = camera.GetViewMatrix();
-        shader.setMat4("view", view);
-        shader.setVec3("camPos", camera.Position);
-
-        // render spheres with varying metallic/roughness values
-        glm::mat4 model;
-        for (int row = 0; row < nrRows; row++)
+        glm::mat4 model = glm::mat4(1.0);
+        if (textured)
         {
-            shader.setFloat("metallic", (float)row / (float)nrRows);
-            for (int col = 0; col < nrColumns; col++)
+            shaderTextured.use();
+            shaderTextured.setMat4("view", view);
+            shaderTextured.setVec3("camPos", camera.Position);
+
+            // load textures
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, albedo);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, normal);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, metallic);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, roughness);
+            glActiveTexture(GL_TEXTURE4);
+            glBindTexture(GL_TEXTURE_2D, ao);
+
+            // render spheres with texture-defined values
+            glm::mat4 model;
+            for (int row = 0; row < nrRows; row++)
             {
-                // clamp to 0.05 - 1.0 since values of 0.0 look a bit off on direct lighting
-                shader.setFloat("roughness", glm::clamp((float)col / (float)nrColumns, 0.05f, 1.0f));
-                
-                model = glm::mat4(1.0f);
-                model = glm::translate(model, glm::vec3(
-                    (col - (nrColumns / 2)) * spacing,
-                    (row - (nrRows / 2)) * spacing,
-                    0.0f
-                ));
-                shader.setMat4("model", model);
-                shader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
-                renderSphere();
+                for (int col = 0; col < nrColumns; col++)
+                {
+                    model = glm::mat4(1.0);
+                    model = glm::translate(model, glm::vec3(
+                        (col - (nrColumns / 2)) * spacing,
+                        (row - (nrRows / 2)) * spacing,
+                        0.0f
+                    ));
+                    shaderTextured.setMat4("model", model);
+                    shaderTextured.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+                    renderSphere();
+                }
+            }
+        }
+        else
+        {
+            shader.use();
+            shader.setMat4("view", view);
+            shader.setVec3("camPos", camera.Position);
+
+            // render spheres with varying metallic/roughness values
+            for (int row = 0; row < nrRows; row++)
+            {
+                shader.setFloat("metallic", (float)row / (float)nrRows);
+                for (int col = 0; col < nrColumns; col++)
+                {
+                    // clamp to 0.05 - 1.0 since values of 0.0 look a bit off on direct lighting
+                    shader.setFloat("roughness", glm::clamp((float)col / (float)nrColumns, 0.05f, 1.0f));
+                    
+                    model = glm::mat4(1.0);
+                    model = glm::translate(model, glm::vec3(
+                        (col - (nrColumns / 2)) * spacing,
+                        (row - (nrRows / 2)) * spacing,
+                        0.0f
+                    ));
+                    shader.setMat4("model", model);
+                    shader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+                    renderSphere();
+                }
             }
         }
 
-        // render light source (simply re-render sphere at light positions)
-        // this looks a bit off as we use the same shader, but it'll make their positions obvious and 
-        // keeps the codeprint small.
-        for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
+        // render light sources
+        // hardcoding number of lights here to get a gimmicky thing to work
+        if (textured)
         {
-            glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(glfwGetTime() * 5.0) * 5.0, 0.0, 0.0);
-            newPos = lightPositions[i];
-            shader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
-            shader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+            glm::vec3 newPos = glm::vec3(0.0f, 0.0f, 10.0f);
 
             model = glm::mat4(1.0f);
             model = glm::translate(model, newPos);
             model = glm::scale(model, glm::vec3(0.5f));
-            shader.setMat4("model", model);
-            shader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+
+            shaderTextured.setVec3("lightPosition", newPos);
+            shaderTextured.setVec3("lightColor", glm::vec3(150.0f, 150.0f, 150.0f));
+            shaderTextured.setMat4("model", model);
+            shaderTextured.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+
             renderSphere();
+        }
+        else
+        {
+            for (unsigned int i = 0; i < 4; i++)
+            {
+                glm::vec3 newPos = lightPositions[i];
+
+                model = glm::mat4(1.0f);
+                model = glm::translate(model, newPos);
+                model = glm::scale(model, glm::vec3(0.5f));
+
+                shader.setVec3("lightPositions[" + std::to_string(i) + "]", newPos);
+                shader.setVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
+                shader.setMat4("model", model);
+                shader.setMat3("normalMatrix", glm::transpose(glm::inverse(glm::mat3(model))));
+
+                renderSphere();
+            }
         }
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -195,6 +273,17 @@ void processInput(GLFWwindow* window)
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+
+    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS)
+    {
+        if (!lock)
+        {
+            lock = true;
+            textured = !textured;
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_RELEASE)
+        lock = false;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -286,7 +375,7 @@ void renderSphere()
             }
             else
             {
-                for (int x = X_SEGMENTS; x >= 0; --x)
+                for (int x = X_SEGMENTS; x >= 0; x--)
                 {
                     indices.push_back((y + 1) * (X_SEGMENTS + 1) + x);
                     indices.push_back(y       * (X_SEGMENTS + 1) + x);
@@ -297,7 +386,7 @@ void renderSphere()
         indexCount = static_cast<unsigned int>(indices.size());
 
         std::vector<float> data;
-        for (unsigned int i = 0; i < positions.size(); ++i)
+        for (unsigned int i = 0; i < positions.size(); i++)
         {
             data.push_back(positions[i].x);
             data.push_back(positions[i].y);
