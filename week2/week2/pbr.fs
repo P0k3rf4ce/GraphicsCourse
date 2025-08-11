@@ -21,37 +21,29 @@ const float PI = 3.14159265359;
 // distribution approx
 float distributionGGX(vec3 N, vec3 H, float roughness)
 {
-    float a = roughness*roughness;
+    float a = roughness*roughness; // according to the book, this looks best
     float a2 = a*a;
     float NdotH = max(dot(N, H), 0.0);
     float NdotH2 = NdotH*NdotH;
 
-    float nom   = a2;
-    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    denom = PI * denom * denom;
-
-    return nom / denom;
+    float denom = NdotH2 * (a2 - 1.0) + 1.0;
+    return a2 / (PI * denom * denom);
 }
 
 // geometry approx
 float geometrySchlickGGX(float NdotV, float roughness)
 {
-    float r = (roughness + 1.0);
+    float r = roughness + 1.0;
     float k = (r*r) / 8.0;
 
-    float nom   = NdotV;
-    float denom = NdotV * (1.0 - k) + k;
-
-    return nom / denom;
+    return NdotV / (NdotV * (1.0 - k) + k);
 }
 float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 {
     float NdotV = max(dot(N, V), 0.0);
     float NdotL = max(dot(N, L), 0.0);
-    float ggx2 = geometrySchlickGGX(NdotV, roughness);
-    float ggx1 = geometrySchlickGGX(NdotL, roughness);
 
-    return ggx1 * ggx2;
+    return geometrySchlickGGX(NdotV, roughness) * geometrySchlickGGX(NdotL, roughness);
 }
 
 // fresnel approx
@@ -71,7 +63,7 @@ void main()
 
     // reflectance equation
     vec3 Lo = vec3(0.0);
-    for(int i = 0; i < 4; ++i) 
+    for(int i = 0; i < 4; i++) 
     {
         // calculate radiance
         vec3 L = normalize(lightPositions[i] - WorldPos);
