@@ -10,6 +10,9 @@ uniform float metallic;
 uniform float roughness;
 uniform float ao;
 
+// ibl
+uniform samplerCube irradianceMap;
+
 // lights
 uniform vec3 lightPositions[4];
 uniform vec3 lightColors[4];
@@ -82,14 +85,20 @@ void main()
         float denom   = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0);
         vec3 specular = num / max(denom, 0.001); // prevent divide by zero
         
-        vec3 kd = vec3(1.0) - F; // conservation of energy
-        kd *= 1.0 - metallic;	  
+        vec3 kd = vec3(1.0) - F;    // conservation of energy
+        kd *= 1.0 - metallic;       // only non-metals have diffuse lighting; linearly blend if partly metal
 
         Lo += (kd * albedo / PI + specular) * radiance * max(dot(N, L), 0.0);
     }   
     
-    // ambient lighting - this will be replaced with IBL next week
-    vec3 ambient = vec3(0.03) * albedo * ao;
+    // ambient lighting - we now use IBL
+    vec3 ks = fresnelSchlick(max(dot(N, V), 0.0), F0);
+    vec3 kd = 1.0 - ks;
+    kd *= 1.0 - metallic;
+
+    vec3 diffuse    = texture(irradianceMap, N).rgb * albedo;
+    vec3 ambient    = (kd * diffuse) * ao;
+
     vec3 color = ambient + Lo;
 
     color = color / (color + vec3(1.0));    // hdr tonemapping
