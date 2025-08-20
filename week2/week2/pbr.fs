@@ -12,6 +12,8 @@ uniform float ao;
 
 // ibl
 uniform samplerCube irradianceMap;
+uniform samplerCube prefilterMap;
+uniform sampler2D brdfLUT;
 
 // lights
 uniform vec3 lightPositions[4];
@@ -54,11 +56,16 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
+{
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}   
 
 void main()
 {		
-    vec3 N = normalize(Normal);
+    vec3 N = Normal;
     vec3 V = normalize(camPos - WorldPos);
+    vec3 R = reflect(-V, N);
 
     // base reflectance
     vec3 F0 = vec3(0.04); 
@@ -79,7 +86,7 @@ void main()
         // calculate brdf
         float D   = distributionGGX(N, H, roughness);   
         float G   = geometrySmith(N, V, L, roughness);      
-        vec3 F    = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
+        vec3 F    = fresnelSchlick(max(dot(H, V), 0.0), F0);
            
         vec3 num      = D * G * F; 
         float denom   = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0);
@@ -92,12 +99,19 @@ void main()
     }   
     
     // ambient lighting - we now use IBL
-    vec3 ks = fresnelSchlick(max(dot(N, V), 0.0), F0);
-    vec3 kd = 1.0 - ks;
+    vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+    vec3 kd = 1.0 - F;
     kd *= 1.0 - metallic;
 
-    vec3 diffuse    = texture(irradianceMap, N).rgb * albedo;
-    vec3 ambient    = (kd * diffuse) * ao;
+    vec3 diffuse = texture(irradianceMap, N).rgb * albedo;
+
+    // sample pre-filter map and lut, then combine via split-sum approx
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 prefilteredColor = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
+    vec2 brdf             = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec3 specular         = prefilteredColor * (F * brdf.x + brdf.y);
+
+    vec3 ambient = (kd * diffuse + specular) * ao;
 
     vec3 color = ambient + Lo;
 

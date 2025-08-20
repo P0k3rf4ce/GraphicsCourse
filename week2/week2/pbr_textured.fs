@@ -11,15 +11,36 @@ uniform sampler2D metallicMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D aoMap;
 
+// IBL
+uniform samplerCube irradianceMap;
+uniform samplerCube prefilterMap;
+uniform sampler2D brdfLUT;
+
 // lights
-uniform vec3 lightPosition;
-uniform vec3 lightColor;
+uniform vec3 lightPositions[4];
+uniform vec3 lightColors[4];
 
 uniform vec3 camPos;
 
 const float PI = 3.14159265359;
 
-vec3 getNormal();
+// trick to get tangent normals to world space - according to book source code
+vec3 getNormal()
+{
+    vec3 tangentNormal = texture(normalMap, TexCoords).xyz * 2.0 - 1.0;
+
+    vec3 Q1  = dFdx(WorldPos);
+    vec3 Q2  = dFdy(WorldPos);
+    vec2 st1 = dFdx(TexCoords);
+    vec2 st2 = dFdy(TexCoords);
+
+    vec3 N   = normalize(Normal);
+    vec3 T   = normalize(Q1*st2.t - Q2*st1.t);
+    vec3 B   = -normalize(cross(N, T));
+    mat3 TBN = mat3(T, B, N);
+
+    return normalize(TBN * tangentNormal);
+}
 
 // distribution approx
 float distributionGGX(vec3 N, vec3 H, float roughness)
@@ -54,6 +75,10 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
+{
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
 
 void main()
 {		
@@ -64,6 +89,7 @@ void main()
 
     vec3 N = getNormal(); // function from book
     vec3 V = normalize(camPos - WorldPos);
+    vec3 R = reflect(-V, N);
 
     // base reflectance
     vec3 F0 = vec3(0.04); 
@@ -71,15 +97,15 @@ void main()
 
     // reflectance equation
     vec3 Lo = vec3(0.0);
-    for(int i = 0; i < 1; i++) 
+    for(int i = 0; i < 4; i++) 
     {
         // calculate radiance
-        vec3 L = normalize(lightPosition - WorldPos);
+        vec3 L = normalize(lightPositions[i] - WorldPos);
         vec3 H = normalize(V + L);
 
-        float distance = length(lightPosition - WorldPos);
+        float distance = length(lightPositions[i] - WorldPos);
         float attenuation = 1.0 / (distance * distance);
-        vec3 radiance = lightColor * attenuation;
+        vec3 radiance = lightColors[i] * attenuation;
 
         // calculate brdf
         float D   = distributionGGX(N, H, roughness);   
@@ -96,29 +122,25 @@ void main()
         Lo += (kd * albedo / PI + specular) * radiance * max(dot(N, L), 0.0);
     }   
     
-    // ambient lighting - this will be replaced with IBL next week
-    vec3 ambient = vec3(0.03) * albedo * ao;
-    vec3 color = ambient + Lo;
+    // ambient lighting
+    vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+    vec3 kd = 1.0 - F;
+    kd *= 1.0 - metallic;
+
+    vec3 irradiance = texture(irradianceMap, N).rgb;
+    vec3 diffuse    = irradiance * albedo;
+
+    // sample pre-filter map and lut, then combine via split-sum approx
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 prefilteredColor = textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb;    
+    vec2 brdf             = texture(brdfLUT, vec2(max(dot(N, V), 0.0), roughness)).rg;
+    vec3 specular         = prefilteredColor * (F * brdf.x + brdf.y);
+
+    vec3 ambient = (kd * diffuse + specular) * ao;
+    vec3 color   = ambient + Lo;
 
     color = color / (color + vec3(1.0));    // hdr tonemapping
     color = pow(color, vec3(1.0/2.2));      // gamma correct
 
     FragColor = vec4(color, 1.0);
-}
-
-vec3 getNormal()
-{
-    vec3 tangentNormal = texture(normalMap, TexCoords).xyz * 2.0 - 1.0;
-
-    vec3 Q1  = dFdx(WorldPos);
-    vec3 Q2  = dFdy(WorldPos);
-    vec2 st1 = dFdx(TexCoords);
-    vec2 st2 = dFdy(TexCoords);
-
-    vec3 N   = normalize(Normal);
-    vec3 T  = normalize(Q1*st2.t - Q2*st1.t);
-    vec3 B  = -normalize(cross(N, T));
-    mat3 TBN = mat3(T, B, N);
-
-    return normalize(TBN * tangentNormal);
 }
